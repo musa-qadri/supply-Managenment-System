@@ -1,0 +1,233 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USERS ====================
+model User {
+  id            String    @id @default(uuid())
+  phone         String    @unique
+  email         String?   @unique
+  name          String
+  role          UserRole  @default(CUSTOMER)
+  avatar        String?
+  isVerified    Boolean   @default(false)
+  googleId      String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  supplierProfile Supplier?
+  customerProfile Customer?
+  addresses       Address[]
+  notifications   Notification[]
+  sessions        Session[]
+}
+
+enum UserRole {
+  CUSTOMER
+  SUPPLIER
+  ADMIN
+}
+
+// ==================== SUPPLIER ====================
+model Supplier {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  businessName    String
+  licenseNumber   String?
+  isActive        Boolean  @default(true)
+  rating          Float    @default(0)
+  totalDeliveries Int      @default(0)
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products        Product[]
+  subscriptions   Subscription[]
+  deliveries      Delivery[]
+}
+
+// ==================== CUSTOMER ====================
+model Customer {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  preferredTime   String?  // "6:00 AM", "7:00 AM"
+  isActive        Boolean  @default(true)
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions   Subscription[]
+  orders          Order[]
+  payments        Payment[]
+}
+
+// ==================== ADDRESS ====================
+model Address {
+  id        String  @id @default(uuid())
+  userId    String
+  label     String  // "Home", "Office"
+  street    String
+  city      String
+  pincode   String
+  lat       Float?
+  lng       Float?
+  isDefault Boolean @default(false)
+  
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==================== PRODUCTS (Milk Types) ====================
+model Product {
+  id          String   @id @default(uuid())
+  supplierId  String
+  name        String   // "Amul Gold", "Mother Dairy Toned"
+  type        MilkType
+  price       Float    // per liter
+  unit        String   @default("liter")
+  isAvailable Boolean  @default(true)
+  image       String?
+  
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+}
+
+enum MilkType {
+  FULL_CREAM
+  TONED
+  DOUBLE_TONED
+  SKIMMED
+  BUFFALO
+  COW
+  ORGANIC
+}
+
+// ==================== SUBSCRIPTION ====================
+model Subscription {
+  id              String            @id @default(uuid())
+  customerId      String
+  supplierId      String
+  productId       String
+  quantity        Float             // e.g., 1.5 liters
+  frequency       SubscriptionFreq  // DAILY, ALTERNATE, WEEKLY
+  startDate       DateTime
+  endDate         DateTime?
+  status          SubscriptionStatus @default(ACTIVE)
+  deliveryTime    String            // "6:00 AM - 7:00 AM"
+  totalAmount     Float?
+  
+  customer        Customer          @relation(fields: [customerId], references: [id])
+  supplier        Supplier          @relation(fields: [supplierId], references: [id])
+  product         Product           @relation(fields: [productId], references: [id])
+  orders          Order[]
+}
+
+enum SubscriptionFreq {
+  DAILY
+  ALTERNATE
+  WEEKLY
+  CUSTOM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+// ==================== ORDERS (Daily) ====================
+model Order {
+  id              String        @id @default(uuid())
+  subscriptionId  String
+  customerId      String
+  date            DateTime
+  quantity        Float
+  status          OrderStatus   @default(PENDING)
+  deliveredAt     DateTime?
+  deliveredBy     String?
+  notes           String?
+  amount          Float
+  
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id])
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  delivery        Delivery?
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  SKIPPED
+}
+
+// ==================== DELIVERIES ====================
+model Delivery {
+  id          String   @id @default(uuid())
+  supplierId  String
+  orderId     String   @unique
+  route       Json?    // optimized delivery route
+  startedAt   DateTime?
+  completedAt DateTime?
+  otp         String?  // delivery confirmation OTP
+  otpVerified Boolean  @default(false)
+  
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  order       Order    @relation(fields: [orderId], references: [id])
+}
+
+// ==================== PAYMENTS ====================
+model Payment {
+  id          String        @id @default(uuid())
+  customerId  String
+  amount      Float
+  method      PaymentMethod
+  status      PaymentStatus @default(PENDING)
+  transactionId String?
+  paidAt      DateTime?
+  
+  customer    Customer      @relation(fields: [customerId], references: [id])
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  UPI
+  CARD
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ==================== NOTIFICATIONS ====================
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      String   // "ORDER", "PAYMENT", "DELIVERY"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// ==================== SESSIONS ====================
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
