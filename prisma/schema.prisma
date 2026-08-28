@@ -9,11 +9,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==================== USERS ====================
 model User {
   id            String    @id @default(uuid())
-  phone         String    @unique
+  phone         String?   @unique
   email         String?   @unique
+  password      String?   // NEW: Hashed password for email login
   name          String
   role          UserRole  @default(CUSTOMER)
   avatar        String?
@@ -22,7 +22,6 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  // Relations
   supplierProfile Supplier?
   customerProfile Customer?
   addresses       Address[]
@@ -36,7 +35,6 @@ enum UserRole {
   ADMIN
 }
 
-// ==================== SUPPLIER ====================
 model Supplier {
   id              String   @id @default(uuid())
   userId          String   @unique
@@ -52,11 +50,10 @@ model Supplier {
   deliveries      Delivery[]
 }
 
-// ==================== CUSTOMER ====================
 model Customer {
   id              String   @id @default(uuid())
   userId          String   @unique
-  preferredTime   String?  // "6:00 AM", "7:00 AM"
+  preferredTime   String?
   isActive        Boolean  @default(true)
   
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -65,11 +62,10 @@ model Customer {
   payments        Payment[]
 }
 
-// ==================== ADDRESS ====================
 model Address {
   id        String  @id @default(uuid())
   userId    String
-  label     String  // "Home", "Office"
+  label     String
   street    String
   city      String
   pincode   String
@@ -80,13 +76,12 @@ model Address {
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ==================== PRODUCTS (Milk Types) ====================
 model Product {
   id          String   @id @default(uuid())
   supplierId  String
-  name        String   // "Amul Gold", "Mother Dairy Toned"
+  name        String
   type        MilkType
-  price       Float    // per liter
+  price       Float
   unit        String   @default("liter")
   isAvailable Boolean  @default(true)
   image       String?
@@ -105,18 +100,17 @@ enum MilkType {
   ORGANIC
 }
 
-// ==================== SUBSCRIPTION ====================
 model Subscription {
   id              String            @id @default(uuid())
   customerId      String
   supplierId      String
   productId       String
-  quantity        Float             // e.g., 1.5 liters
-  frequency       SubscriptionFreq  // DAILY, ALTERNATE, WEEKLY
+  quantity        Float
+  frequency       SubscriptionFreq  @default(DAILY)
   startDate       DateTime
   endDate         DateTime?
   status          SubscriptionStatus @default(ACTIVE)
-  deliveryTime    String            // "6:00 AM - 7:00 AM"
+  deliveryTime    String
   totalAmount     Float?
   
   customer        Customer          @relation(fields: [customerId], references: [id])
@@ -139,7 +133,6 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
-// ==================== ORDERS (Daily) ====================
 model Order {
   id              String        @id @default(uuid())
   subscriptionId  String
@@ -166,32 +159,30 @@ enum OrderStatus {
   SKIPPED
 }
 
-// ==================== DELIVERIES ====================
 model Delivery {
   id          String   @id @default(uuid())
   supplierId  String
   orderId     String   @unique
-  route       Json?    // optimized delivery route
+  route       Json?
   startedAt   DateTime?
   completedAt DateTime?
-  otp         String?  // delivery confirmation OTP
+  otp         String?
   otpVerified Boolean  @default(false)
   
   supplier    Supplier @relation(fields: [supplierId], references: [id])
   order       Order    @relation(fields: [orderId], references: [id])
 }
 
-// ==================== PAYMENTS ====================
 model Payment {
-  id          String        @id @default(uuid())
-  customerId  String
-  amount      Float
-  method      PaymentMethod
-  status      PaymentStatus @default(PENDING)
+  id            String        @id @default(uuid())
+  customerId    String
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
   transactionId String?
-  paidAt      DateTime?
+  paidAt        DateTime?
   
-  customer    Customer      @relation(fields: [customerId], references: [id])
+  customer      Customer      @relation(fields: [customerId], references: [id])
 }
 
 enum PaymentMethod {
@@ -208,20 +199,18 @@ enum PaymentStatus {
   REFUNDED
 }
 
-// ==================== NOTIFICATIONS ====================
 model Notification {
   id        String   @id @default(uuid())
   userId    String
   title     String
   body      String
-  type      String   // "ORDER", "PAYMENT", "DELIVERY"
+  type      String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   
   user      User     @relation(fields: [userId], references: [id])
 }
 
-// ==================== SESSIONS ====================
 model Session {
   id        String   @id @default(uuid())
   userId    String
