@@ -11,10 +11,10 @@ import {
   GoogleAuthDto, 
   RefreshTokenDto, 
   LogoutDto,
-  RegisterEmailDto,  // NEW
-  LoginEmailDto,     // NEW
+  RegisterEmailDto,  
+  LoginEmailDto,     
 } from '../dto/auth.dto';
-import { Public } from '../../../common/decorators/public.decorator';
+import { Public } from '../../../common/decorators';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
@@ -29,7 +29,6 @@ export class AuthController {
     private readonly tokenService: TokenService,
   ) {}
 
-  // ========== EMAIL AUTH (NEW) ==========
 
   @Public()
   @Post('email/register')
